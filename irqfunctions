@@ -1,0 +1,133 @@
+#!/bin/bash
+
+cpuListFromReversedBitmask() {
+	affinity_bitmask_reversed=$1
+	abr_len=${#affinity_bitmask_reversed}
+    cpu_list=""
+    for (( i=0; i<abr_len; i++ )); do
+        bit=${affinity_bitmask_reversed:$i:1}
+        if [ "$bit" -eq "1" ]; then
+            cpu_list="$cpu_list,$i"
+        fi
+    done
+    cpu_list_len=${#cpu_list}
+    if [ $cpu_list_len -gt 0 ]; then
+        cpu_list=${cpu_list:1:$cpu_list_len}
+    fi
+	echo $cpu_list
+}
+
+reversedBitmaskFromCpuList() {
+    cpu_list=$1
+    cpu_list_continuous_elements=${cpu_list//,/ }
+	bit_index=0
+    affinity_bitmask_reversed=""
+
+    if [ -z "$2" ]; then
+        nproc=$(nproc)
+    else
+        nproc=$2
+    fi
+
+	for spec in $cpu_list_continuous_elements; do
+		if [[ "$spec" =~ .*-.* ]]; then
+			first=$(echo $spec | cut -d '-' -f 1 | bc)
+			last=$(echo $spec | cut -d '-' -f 2 | bc)
+			for (( i=bit_index; i<first; i++ )); do
+			    affinity_bitmask_reversed="${affinity_bitmask_reversed}0"
+				((bit_index++))
+			done
+			for (( i=first; i<=last; i++ )); do
+			    affinity_bitmask_reversed="${affinity_bitmask_reversed}1"
+				((bit_index++))
+			done
+		else
+			bit=$(echo $spec | cut -d '-' -f 1 | bc)
+			for (( i=bit_index; i<bit; i++ )); do
+			    affinity_bitmask_reversed="${affinity_bitmask_reversed}0"
+				((bit_index++))
+			done
+			affinity_bitmask_reversed="${affinity_bitmask_reversed}1"
+			((bit_index++))
+		fi
+	done
+	for (( i=bit_index; i<nproc; i++ )); do
+	    affinity_bitmask_reversed="${affinity_bitmask_reversed}0"
+	done
+	echo $affinity_bitmask_reversed
+}
+
+reversedBitmaskFromHexmask() {
+    affinity_hexmask=$1
+    if [ -z "$2" ]; then
+        nproc=$(nproc)
+    else
+        nproc=$2
+    fi
+    hexmask_upper=$(echo $affinity_hexmask | tr '[:lower:]' '[:upper:]' | sed 's/,//g' )
+    partial_bitmask=$(echo "obase=2; ibase=16; $hexmask_upper" | bc)
+
+	template="%${nproc}s\n"
+    printf $template $partial_bitmask | tr ' ' '0' | rev
+}
+
+hexmaskFromReversedBitmask() {
+    unreversed_bitmask=$(echo $1 | rev)
+    hexmask_lower=$(echo "obase=16; ibase=2; $unreversed_bitmask" | bc | tr '[:upper:]' '[:lower:]')
+    affinity_hexmask=$(echo $hexmask_lower | sed 's/\([0-9a-f]\{8\}\)/\1,/g' | sed 's/\,$//')
+    echo $affinity_hexmask
+}
+
+interestingInterfaces() {
+    ip -o link show | grep 'link/ether' | cut -d ':' -f 2 | grep -vE 'bond|dummy'
+}
+
+businfoForInterface() {
+    interface=$1
+    ethtool -i $interface | awk '$1 ~ /bus-info/ {print $2}'
+}
+
+deviceDirectoryForBusinfo() {
+    businfo=$1
+    find /sys/devices -type d -name "$businfo"
+}
+
+irqsForInterface() {
+    interface=$1
+    businfo=$2
+    # note we assume that businfo and interface are unique in /proc/interrupts and that one or other of them are shown for all interesting interfaces (not strictly true, at least for some wifi cards)
+    grep -E "$businfo|$interface" /proc/interrupts | cut -d ':' -f 1
+}
+
+printInterestingNetworkInterrupts() {
+
+    interfaces=$(interestingInterfaces)
+
+    echo "nproc is $(nproc)"
+    echo "Found interfaces" $interfaces
+    echo "--------------"
+
+    for interface in $interfaces; do
+        businfo=$(businfoForInterface $interface)
+        device_dir=$(deviceDirectoryForBusinfo $businfo)
+        local_affinity_hexmask=$(cat $device_dir/local_cpus)
+        local_affinity_bitmask_reversed=$(reversedBitmaskFromHexmask $local_affinity_hexmask)
+        local_cpu_list=$(cat $device_dir/local_cpulist)
+
+        echo "$interface $businfo has numa node $numa_node and local affinity $local_affinity_hexmask $local_affinity_bitmask_reversed $local_cpu_list"
+        echo "--------------"
+
+        irqs=$(irqsForInterface $interface $businfo)    
+        if [ -z "$irqs" ]; then
+            echo "Can't find irqs for $interface $businfo - if the interface is up, try checking /proc/interrupts manually"
+        else
+            for irq in $irqs; do
+                affinity_hexmask=$(cat /proc/irq/$irq/smp_affinity)
+                affinity_bitmask_reversed=$(reversedBitmaskFromHexmask $affinity_hexmask)
+                cpu_list=$(cat /proc/irq/$irq/smp_affinity_list)
+                echo "irq $irq has smp_affinity $affinity_hexmask $affinity_bitmask_reversed $cpu_list"
+            done
+        fi
+        echo "--------------"
+    done
+}
