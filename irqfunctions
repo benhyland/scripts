@@ -113,6 +113,7 @@ printInterestingNetworkInterrupts() {
         local_affinity_hexmask=$(cat $device_dir/local_cpus)
         local_affinity_bitmask_reversed=$(reversedBitmaskFromHexmask $local_affinity_hexmask)
         local_cpu_list=$(cat $device_dir/local_cpulist)
+		numa_node=$(cat $device_dir/numa_node)
 
         echo "$interface $businfo has numa node $numa_node and local affinity $local_affinity_hexmask $local_affinity_bitmask_reversed $local_cpu_list"
         echo "--------------"
