@@ -67,7 +67,7 @@ reversedBitmaskFromHexmask() {
     hexmask_upper=$(echo $affinity_hexmask | tr '[:lower:]' '[:upper:]' | sed 's/,//g' )
     partial_bitmask=$(echo "obase=2; ibase=16; $hexmask_upper" | bc)
 
-	template="%${nproc}s\n"
+    template="%${nproc}s\n"
     printf $template $partial_bitmask | tr ' ' '0' | rev
 }
 
@@ -76,6 +76,18 @@ hexmaskFromReversedBitmask() {
     hexmask_lower=$(echo "obase=16; ibase=2; $unreversed_bitmask" | bc | tr '[:upper:]' '[:lower:]')
     affinity_hexmask=$(echo $hexmask_lower | sed 's/\([0-9a-f]\{8\}\)/\1,/g' | sed 's/\,$//')
     echo $affinity_hexmask
+}
+
+hexmaskFromCpuList() {
+	affinity_bitmask_reversed=$(reversedBitmaskFromCpuList $@)
+	affinity_hexmask=$(hexmaskFromReversedBitmask $affinity_bitmask_reversed)
+	echo $affinity_hexmask
+}
+
+cpuListFromHexmask() {
+	affinity_bitmask_reversed=$(reversedBitmaskFromHexmask $@)
+	cpu_list=$(cpuListFromReversedBitmask $affinity_bitmask_reversed)
+	echo $cpu_list
 }
 
 interestingInterfaces() {
@@ -113,7 +125,7 @@ printInterestingNetworkInterrupts() {
         local_affinity_hexmask=$(cat $device_dir/local_cpus)
         local_affinity_bitmask_reversed=$(reversedBitmaskFromHexmask $local_affinity_hexmask)
         local_cpu_list=$(cat $device_dir/local_cpulist)
-		numa_node=$(cat $device_dir/numa_node)
+        numa_node=$(cat $device_dir/numa_node)
 
         echo "$interface $businfo has numa node $numa_node and local affinity $local_affinity_hexmask $local_affinity_bitmask_reversed $local_cpu_list"
         echo "--------------"
