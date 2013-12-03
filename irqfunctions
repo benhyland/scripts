@@ -144,3 +144,8 @@ printInterestingNetworkInterrupts() {
         echo "--------------"
     done
 }
+
+# if called via symlink, call function corresponding to the link name.
+if [ -L $0 ]; then
+	"$(basename $0)" $@
+fi
