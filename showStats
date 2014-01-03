@@ -1,0 +1,33 @@
+#!/bin/sh
+
+showStats() {
+	files="$1"
+	shift
+	for f in $files; do
+		showStatsFile "$f" $@
+	done
+}
+
+showStatsFile() {
+
+	file="$1"
+	# convert human-format dates to seconds since epoch
+	start=$(date -u -d "$2" +%s)
+	end=$(date -u -d "$3" +%s)
+
+	awk -v start="$start" -v end="$end" '
+		#BEGIN { print "timestamp user sys idle iowait user+sys" }
+		# note no steal - assume we are not on an overcommitted vm
+		/UTC/ {
+			split($18,date,"-")
+			split($19,time,":")
+			datetime = (date[1] " " date[2] " " date[3] " " time[1] " " time[2] " " time[3])
+			ts = mktime(datetime)
+
+			if(ts >= start && ts <= end) {
+				print ts,$13,$14,$15,$16,($13 + $14)
+			}
+		}' "$file" | sort -k 1
+}
+
+showStats $@

@@ -1,0 +1,9 @@
+#!/bin/sh
+
+recordStats() {
+	timeout="$1"
+	file="$2"
+	nohup timeout "$timeout" vmstat -t 5 >> "$file" &
+}
+
+recordStats $@

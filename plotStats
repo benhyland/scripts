@@ -1,0 +1,27 @@
+#!/bin/sh
+
+plotStats() {
+	title=$1
+	infile=$(mktemp)
+	cat > "$infile"
+	echo "
+	set title '$title';
+	set output '$title.png';
+	set terminal png;
+	set autoscale;
+	#set logscale y 10;
+	set xdata time;
+	set timefmt '%s';
+	set xtics 1800;
+	set format x '%H:%M:%S';
+
+	plot '$infile' \
+	using 1:2 with lines t 'user',\
+	'' using 1:3 with lines t 'sys',\
+	'' using 1:4 with lines t 'idle',\
+	'' using 1:5 with lines t 'iowait',\
+	'' using 1:6 with lines t 'user+sys'
+	" | gnuplot
+}
+
+plotStats $@

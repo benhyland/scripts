@@ -1,0 +1,20 @@
+#!/bin/sh
+
+sumStats() {
+	awk '
+		{ 
+			bucket = int($1/100)*100
+			user[bucket] = user[bucket] + $2
+			sys[bucket] = sys[bucket] + $3
+			idle[bucket] = idle[bucket] + $4
+			iowait[bucket] = iowait[bucket] + $5
+			usersys[bucket] = usersys[bucket] + $6
+		}
+		END {
+			for (bucket in user) {
+				print bucket" "user[bucket]" "sys[bucket]" "idle[bucket]" "iowait[bucket]" "usersys[bucket]
+			}
+		}' | sort -k 1
+}
+
+sumStats
