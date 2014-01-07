@@ -4,7 +4,7 @@ showStats() {
 	files="$1"
 	shift
 	for f in $files; do
-		showStatsFile "$f" $@
+		showStatsFile "$f" "$@"
 	done
 }
 
@@ -30,4 +30,4 @@ showStatsFile() {
 		}' "$file" | sort -k 1
 }
 
-showStats $@
+showStats "$@"

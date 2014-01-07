@@ -6,4 +6,4 @@ recordStats() {
 	nohup timeout "$timeout" vmstat -t 5 >> "$file" &
 }
 
-recordStats $@
+recordStats "$@"

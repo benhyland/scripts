@@ -1,7 +1,7 @@
 #!/bin/sh
 
 plotStats() {
-	title=$1
+	title="$1"
 	infile=$(mktemp)
 	cat > "$infile"
 	echo "
@@ -24,4 +24,4 @@ plotStats() {
 	" | gnuplot
 }
 
-plotStats $@
+plotStats "$@"
