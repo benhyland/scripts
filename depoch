@@ -1,0 +1,50 @@
+#!/usr/local/bin/gawk -f
+
+# depoch in awk, hat tip to Luke Bigum for the perl.
+# finds strings of digits which might be unix timestamps and emits a human friendly format in place.
+
+# todo:
+# handle residue
+# make {} separators configurable
+# make date format configurable
+# is it fast enough to handle big logs? compare to perl version.
+
+function formatTime(time) {
+	secs = substr(time, 1, 10)
+	return "{" time " : " strftime("%c", secs) "}"
+}
+
+function matchTimeFromIndex(string, i) {
+
+	toMatch = substr(string, i)
+	
+	match(toMatch, /[0-9]{10,}/)
+
+	if(RLENGTH == -1) {
+		NEXT_I = -1
+	}
+	else {
+		NEXT_I = i + RSTART + RLENGTH - 1
+	}
+}
+
+{
+	orig = $0
+	result = ""
+
+	i = 1
+	len = length(orig)
+	while(i != -1 && i < len) {
+
+		matchTimeFromIndex(orig, i)
+		if(RLENGTH != -1) {
+			result = result substr(orig, i, RSTART - 1) formatTime(substr(orig, i + RSTART - 1, RLENGTH))
+		}
+		else {
+			result = result substr(orig, i)
+		}
+		i = NEXT_I
+	}
+
+	print result
+}
