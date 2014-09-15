@@ -3,11 +3,11 @@
 # depoch in awk, hat tip to Luke Bigum for the perl.
 # finds strings of digits which might be unix timestamps and emits a human friendly format in place.
 
-# todo:
+# todo/notes:
 # handle residue
 # make {} separators configurable
 # make date format configurable
-# is it fast enough to handle big logs? compare to perl version.
+# seems to be about half as fast as the equivalent perl
 
 function formatTime(time) {
 	secs = substr(time, 1, 10)
